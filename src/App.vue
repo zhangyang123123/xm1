@@ -55,7 +55,7 @@ function tick() {
 
 function startTimer() {
   if (isRunning.value) return
-  if (Notification.permission === 'default') {
+  if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
     Notification.requestPermission()
   }
   isRunning.value = true
@@ -82,25 +82,29 @@ function switchMode() {
 }
 
 function playSound() {
-  if (!audioContext) {
-    audioContext = new (window.AudioContext || window.webkitAudioContext)()
+  try {
+    if (!audioContext) {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)()
+    }
+    const oscillator = audioContext.createOscillator()
+    const gainNode = audioContext.createGain()
+    oscillator.connect(gainNode)
+    gainNode.connect(audioContext.destination)
+    oscillator.type = 'sine'
+    oscillator.frequency.setValueAtTime(880, audioContext.currentTime)
+    oscillator.frequency.setValueAtTime(660, audioContext.currentTime + 0.2)
+    oscillator.frequency.setValueAtTime(880, audioContext.currentTime + 0.4)
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime)
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.8)
+    oscillator.start(audioContext.currentTime)
+    oscillator.stop(audioContext.currentTime + 0.8)
+  } catch (e) {
+    console.warn('Audio playback failed:', e)
   }
-  const oscillator = audioContext.createOscillator()
-  const gainNode = audioContext.createGain()
-  oscillator.connect(gainNode)
-  gainNode.connect(audioContext.destination)
-  oscillator.type = 'sine'
-  oscillator.frequency.setValueAtTime(880, audioContext.currentTime)
-  oscillator.frequency.setValueAtTime(660, audioContext.currentTime + 0.2)
-  oscillator.frequency.setValueAtTime(880, audioContext.currentTime + 0.4)
-  gainNode.gain.setValueAtTime(0.3, audioContext.currentTime)
-  gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.8)
-  oscillator.start(audioContext.currentTime)
-  oscillator.stop(audioContext.currentTime + 0.8)
 }
 
 function sendNotification() {
-  if (Notification.permission === 'granted') {
+  if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
     const title = mode.value === 'focus' ? '专注完成！' : '休息结束！'
     const body = mode.value === 'focus' ? '休息一下吧 ☕' : '开始下一个番茄钟吧 🚀'
     new Notification(title, { body })
@@ -127,7 +131,7 @@ watch(todayKey, () => {
 
 onMounted(() => {
   loadCompletedCount()
-  if ('Notification' in window && Notification.permission === 'default') {
+  if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
     Notification.requestPermission()
   }
 })
@@ -289,7 +293,6 @@ onUnmounted(() => {
 
 .progress-ring-bar {
   fill: none;
-  stroke: url(#gradient);
   stroke-width: 10;
   stroke-linecap: round;
   transition: stroke-dashoffset 1s linear;
